@@ -64,7 +64,7 @@ func (s *Scrapper) Scrape() []string {
 		href := a.Attr("href")
 		content := strings.ToLower(a.Text)
 
-		if !strings.HasPrefix(href, "//assets.ctfassets.net/") || !strings.Contains(content, "recette") {
+		if !strings.Contains(href, "ctfassets.net") || !strings.Contains(content, "recette") {
 			return
 		}
 
