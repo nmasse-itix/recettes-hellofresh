@@ -1,8 +1,8 @@
 Scrapper:
   URL: https://www.hellofresh.be/about/nieuws?locale=fr-BE
 WebDAV:
-  URL: https://nextcloud-server/remote.php/dav/files/john.doe/
-  Username: john.doe
+  URL: http://localhost:8080/remote.php/dav/files/admin/
+  Username: admin
   Password: secret
-  Folder: /Documents/hellofresh
+  Folder: /Documents/à trier
   FolderFormat: "2006"

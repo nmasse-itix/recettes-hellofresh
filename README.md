@@ -18,7 +18,6 @@ go build -o recettes-hellofresh
 ## Usage
 
 ```sh
-cp config.yaml.sample config.yaml
-vim config.yaml
+podman-compose up -d
 ./recettes-hellofresh config.yaml
 ```

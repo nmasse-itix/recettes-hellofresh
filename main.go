@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -24,16 +26,26 @@ type Scrapper struct {
 	davFolderFormat string
 }
 
-func NewScrapper(url, davUrl, davUsername, davPassword, davFolder, davFolderFormat string, httpTimeout time.Duration) (*Scrapper, error) {
-	dav := gowebdav.NewClient(davUrl, davUsername, davPassword)
+type ScrapperConfig struct {
+	ScrapperUrl     string
+	DavUrl          string
+	DavUsername     string
+	DavPassword     string
+	DavFolder       string
+	DavFolderFormat string
+	HttpTimeout     time.Duration
+}
+
+func NewScrapper(config ScrapperConfig) (*Scrapper, error) {
+	dav := gowebdav.NewClient(config.DavUrl, config.DavUsername, config.DavPassword)
 	scrapper := Scrapper{
-		url:             url,
+		url:             config.ScrapperUrl,
 		c:               colly.NewCollector(),
 		dav:             dav,
-		davFolder:       davFolder,
-		davFolderFormat: davFolderFormat,
+		davFolder:       config.DavFolder,
+		davFolderFormat: config.DavFolderFormat,
 		client: &http.Client{
-			Timeout: httpTimeout,
+			Timeout: config.HttpTimeout,
 		},
 	}
 
@@ -90,7 +102,30 @@ func (s *Scrapper) Download(u, filename string) error {
 		return fmt.Errorf("Wrong status code: %d", resp.StatusCode)
 	}
 
-	err = s.dav.WriteStream(davFilePath, body, 0644)
+	// HEADS UP !
+	//
+	// Because of a potential bug with the default Nextcloud configuration,
+	// the whole file is loaded in memory before being sent over the network.
+	//
+	// Long explanation:
+	//
+	// The golang net/http library behaves differently depending on the
+	// implementation behind the io.Reader interface.
+	//
+	// * bytes.Reader, strings.Reader and bytes.Buffer: Content-Length is set
+	//   to the size of the content.
+	//
+	// * others: no content-length is set and therefore chunked encoding is used.
+	//
+	// It looks like the default Nginx configuration for Nextcloud does not like
+	// chunked encoding...
+	//
+	// See https://github.com/photoprism/photoprism/issues/443#issuecomment-685608490
+	// and https://github.com/studio-b12/gowebdav/issues/35
+	content, err := ioutil.ReadAll(body)
+	reader := bytes.NewReader(content)
+
+	err = s.dav.WriteStream(davFilePath, reader, 0644)
 	if err != nil {
 		return err
 	}
@@ -132,7 +167,15 @@ func initConfig() {
 func main() {
 	initConfig()
 
-	scrapper, err := NewScrapper(viper.GetString("Scrapper.URL"), viper.GetString("WebDAV.URL"), viper.GetString("WebDAV.Username"), viper.GetString("WebDAV.Password"), viper.GetString("WebDAV.Folder"), viper.GetString("WebDAV.FolderFormat"), viper.GetDuration("Scrapper.Timeout"))
+	scrapper, err := NewScrapper(ScrapperConfig{
+		ScrapperUrl:     viper.GetString("Scrapper.URL"),
+		DavUrl:          viper.GetString("WebDAV.URL"),
+		DavUsername:     viper.GetString("WebDAV.Username"),
+		DavPassword:     viper.GetString("WebDAV.Password"),
+		DavFolder:       viper.GetString("WebDAV.Folder"),
+		DavFolderFormat: viper.GetString("WebDAV.FolderFormat"),
+		HttpTimeout:     viper.GetDuration("Scrapper.Timeout"),
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
