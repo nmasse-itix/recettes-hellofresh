@@ -1,7 +1,6 @@
 volumes:
   db:
   nextcloud:
-  vsftpd:
 
 services:
   db:
@@ -50,14 +49,3 @@ services:
     volumes:
       - .podman-compose/nginx/nginx.conf:/etc/nginx/nginx.conf:z
       - nextcloud:/var/www/html
-
-  vsftpd:
-    image: quay.io/itix/vsftpd:v0.0.22
-    restart: always
-    ports:
-    - "2121:2121"
-    - "30100-30119:30100-30119"
-    volumes:
-      - .podman-compose/vsftpd/config:/etc/vsftpd:z
-      - .podman-compose/vsftpd/users:/etc/vsftpd-users:z
-      - vsftpd:/srv/vsftpd
